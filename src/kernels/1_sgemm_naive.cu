@@ -15,6 +15,6 @@ __global__ void sgemm_naive(
         for (int i = 0; i < k; i++) {
             value += a[row * k + i] * b[i * n + col];
         }
-        c[row * k + col] = alpha * value + beta * c[row * k + col];
+        c[row * n + col] = alpha * value + beta * c[row * n + col];
     }
 }
