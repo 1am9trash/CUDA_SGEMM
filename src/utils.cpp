@@ -25,6 +25,15 @@ std::vector<float> create_matrix(int m, int n) {
     return a;
 }
 
+void print_matrix(std::vector<float> &a, int m, int n, int limit) {
+    for (int i = 0; i < std::min(limit, m); i++) {
+        for (int j = 0; j < std::min(limit, n); j++) {
+            std::cout << a[i * n + j] << " ";
+        }
+        std::cout << "\n";
+    }
+}
+
 GPUTimer::GPUTimer() {
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
