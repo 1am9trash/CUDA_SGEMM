@@ -19,4 +19,11 @@ __global__ void sgemm_naive(
     float *c
 );
 
+template <const int BLOCKSIZE>
+__global__ void sgemm_global_mem_coalescing(
+    int m, int n, int k,
+    const float alpha, const float *a, const float *b, const float beta,
+    float *c
+);
+
 #endif
