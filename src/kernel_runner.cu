@@ -16,10 +16,25 @@ void run_1_sgemm_naive(
     sgemm_naive<<<grid_dim, block_dim>>>(m, n, k, alpha, a, b, beta, c);
 }
 
-void run_sgemm(
+void run_2_sgemm_global_mem_coalescing(
     int m, int n, int k,
     const float alpha, const float *a, const float *b, const float beta,
     float *c
 ) {
-    run_1_sgemm_naive(m, n, k, alpha, a, b, beta, c);
+    const int BLOCKSIZE = 32;
+    dim3 grid_dim(CEIL_DIV(m, BLOCKSIZE), CEIL_DIV(n, BLOCKSIZE));
+    dim3 block_dim(BLOCKSIZE * BLOCKSIZE);
+    sgemm_global_mem_coalescing<BLOCKSIZE><<<grid_dim, block_dim>>>(m, n, k, alpha, a, b, beta, c);
+}
+
+void run_sgemm(
+    int kernel_id,
+    int m, int n, int k,
+    const float alpha, const float *a, const float *b, const float beta,
+    float *c
+) {
+    if (kernel_id == 1)
+        run_1_sgemm_naive(m, n, k, alpha, a, b, beta, c);
+    else if (kernel_id == 2)
+        run_2_sgemm_global_mem_coalescing(m, n, k, alpha, a, b, beta, c);
 }

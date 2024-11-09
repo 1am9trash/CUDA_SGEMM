@@ -9,11 +9,19 @@
 #define cudaCheck(err) (cudaCheck(err, __FILE__, __LINE__))
 
 int main() {
+    int kernel_id = 1;
+
     const int device_id = 0;
     cudaCheck(cudaSetDevice(device_id));
     std::cout << "running kernel on device " << device_id << "\n\n";
 
-    const std::vector<int> test_size = {128, 256, 512, 1024, 2048, 4096};
+    cudaDeviceProp device_prop;
+    cudaCheck(cudaGetDeviceProperties(&device_prop, device_id));
+    std::cout << "shared memory per SM: " << device_prop.sharedMemPerMultiprocessor / 1024 << " KB\n";
+    std::cout << "shared memory per block: " << device_prop.sharedMemPerBlock / 1024 << " KB\n";
+    std::cout << "warp size: " << device_prop.warpSize << "\n\n";
+
+    const std::vector<int> test_size = {4096};
     const int max_test_size = test_size[test_size.size() - 1];
     int m, k, n;
     const float alpha = 0.1, beta = 0.2;
@@ -38,7 +46,7 @@ int main() {
         m = n = k = test_size[i];
         timer.start_timer();
         for (int j = 0; j < test_count; j++) {
-            run_sgemm(m, n, k, alpha, device_a, device_b, beta, device_c);
+            run_sgemm(kernel_id, m, n, k, alpha, device_a, device_b, beta, device_c);
         }
         timer.stop_timer();
 
@@ -46,7 +54,12 @@ int main() {
         std::cout << std::fixed << std::setprecision(3);
         std::cout << "dimensions (m=k=n): " << m << ", alpha: " << alpha << ", beta: " << beta << "\n";
         std::cout << "elapsed time: " << elapsed_time / test_count * 1000 << " ms\n";
-        std::cout << "performance: " << ((double)test_count * 2 * m * n * k * 1e-9) / elapsed_time << " GFLOPS\n\n";
+        std::cout << "performance: " << ((double)test_count * 2 * m * n * k * 1e-9) / elapsed_time << " GFLOPS\n";
+
+        cudaCheck(cudaMemcpy(host_c.data(), device_c, byte_count, cudaMemcpyDeviceToHost));
+        std::cout << "part of matrix:\n";
+        print_matrix(host_c, m, n, 8);
+        std::cout << "\n";
     }
 
     return 0;

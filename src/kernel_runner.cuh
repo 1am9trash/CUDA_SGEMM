@@ -10,7 +10,14 @@ void run_1_sgemm_naive(
     float *c
 );
 
+void run_2_sgemm_global_mem_coalescing(
+    int m, int n, int k,
+    const float alpha, const float *a, const float *b, const float beta,
+    float *c
+);
+
 void run_sgemm(
+    int kernel_id,
     int m, int n, int k,
     const float alpha, const float *a, const float *b, const float beta,
     float *c
