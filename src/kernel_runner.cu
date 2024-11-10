@@ -27,6 +27,17 @@ void run_2_sgemm_global_mem_coalescing(
     sgemm_global_mem_coalescing<BLOCKSIZE><<<grid_dim, block_dim>>>(m, n, k, alpha, a, b, beta, c);
 }
 
+void run_3_sgemm_shared_mem_caching(
+    int m, int n, int k,
+    const float alpha, const float *a, const float *b, const float beta,
+    float *c
+) {
+    const int BLOCKSIZE = 32;
+    dim3 grid_dim(CEIL_DIV(m, BLOCKSIZE), CEIL_DIV(n, BLOCKSIZE));
+    dim3 block_dim(BLOCKSIZE * BLOCKSIZE);
+    sgemm_shared_mem_caching<BLOCKSIZE><<<grid_dim, block_dim>>>(m, n, k, alpha, a, b, beta, c);
+}
+
 void run_sgemm(
     int kernel_id,
     int m, int n, int k,
@@ -37,4 +48,6 @@ void run_sgemm(
         run_1_sgemm_naive(m, n, k, alpha, a, b, beta, c);
     else if (kernel_id == 2)
         run_2_sgemm_global_mem_coalescing(m, n, k, alpha, a, b, beta, c);
+    else if (kernel_id == 3)
+        run_3_sgemm_shared_mem_caching(m, n, k, alpha, a, b, beta, c);
 }

@@ -16,6 +16,12 @@ void run_2_sgemm_global_mem_coalescing(
     float *c
 );
 
+void run_3_sgemm_shared_mem_caching(
+    int m, int n, int k,
+    const float alpha, const float *a, const float *b, const float beta,
+    float *c
+);
+
 void run_sgemm(
     int kernel_id,
     int m, int n, int k,

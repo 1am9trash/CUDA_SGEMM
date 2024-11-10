@@ -26,4 +26,11 @@ __global__ void sgemm_global_mem_coalescing(
     float *c
 );
 
+template <const int BLOCKSIZE>
+__global__ void sgemm_shared_mem_caching(
+    int m, int n, int k,
+    const float alpha, const float *a, const float *b, const float beta,
+    float *c
+);
+
 #endif
