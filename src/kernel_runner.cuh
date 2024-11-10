@@ -22,6 +22,12 @@ void run_3_sgemm_shared_mem_caching(
     float *c
 );
 
+void run_4_sgemm_thread_tiling_1d(
+    int m, int n, int k,
+    const float alpha, const float *a, const float *b, const float beta,
+    float *c
+);
+
 void run_sgemm(
     int kernel_id,
     int m, int n, int k,

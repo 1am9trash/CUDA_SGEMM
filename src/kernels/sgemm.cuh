@@ -33,4 +33,11 @@ __global__ void sgemm_shared_mem_caching(
     float *c
 );
 
+template <const int BM, const int BK, const int BN, const int TM>
+__global__ void sgemm_thread_tiling_1d(
+    int m, int n, int k,
+    const float alpha, const float *a, const float *b, const float beta,
+    float *c
+);
+
 #endif
