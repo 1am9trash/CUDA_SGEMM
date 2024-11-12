@@ -2,6 +2,7 @@
 #include <random>
 #include <vector>
 #include <algorithm>
+#include <cassert>
 #include <cuda_runtime.h>
 #include "utils.hpp"
 
@@ -32,6 +33,16 @@ void print_matrix(std::vector<float> &a, int m, int n, int limit) {
         }
         std::cout << "\n";
     }
+}
+
+bool is_matrix_same(std::vector<float> &a, std::vector<float> &b) {
+    assert(a.size() == b.size());
+    for (int i = 0; i < a.size(); i++) {
+        if (fabs(a[i] - b[i]) > 1e-4) {
+            return 0;
+        }
+    }
+    return 1;
 }
 
 GPUTimer::GPUTimer() {
