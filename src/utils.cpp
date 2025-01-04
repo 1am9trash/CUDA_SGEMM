@@ -14,6 +14,40 @@ void cudaCheck(cudaError_t err, const char *file, int line) {
     }
 }
 
+void print_GPU_info(int device_id) {
+    cudaDeviceProp device_prop;
+    cudaCheck(cudaGetDeviceProperties(&device_prop, device_id), __FILE__, __LINE__);
+
+    std::cout << "\n";
+    std::cout << "number of SMs: " << device_prop.multiProcessorCount << "\n";
+
+    std::cout << "gmem size: " << device_prop.totalGlobalMem / (1024 * 1024) << " MB\n";
+    std::cout << "smem per SM: " << device_prop.sharedMemPerMultiprocessor / 1024 << " KB\n";
+    std::cout << "smem per block: " << device_prop.sharedMemPerBlock / 1024 << " KB\n";
+
+    std::cout << "warp size: " << device_prop.warpSize << "\n";
+    std::cout << "max threads per SM: " << device_prop.maxThreadsPerMultiProcessor << "\n";
+    std::cout << "max threads per block: " << device_prop.maxThreadsPerBlock << "\n";
+    std::cout << "max warps per SM: " << device_prop.maxThreadsPerMultiProcessor / device_prop.warpSize << "\n";
+    std::cout << "registers per block: " << device_prop.regsPerBlock / 1024 << " K\n";
+    std::cout << "registers per SM: " << device_prop.regsPerMultiprocessor / 1024 << " K\n";
+
+    std::cout << "max block dimensions: ("
+              << device_prop.maxThreadsDim[0] << ", "
+              << device_prop.maxThreadsDim[1] << ", "
+              << device_prop.maxThreadsDim[2] << ")\n";
+    std::cout << "max grid dimensions: ("
+              << device_prop.maxGridSize[0] << ", "
+              << device_prop.maxGridSize[1] << ", "
+              << device_prop.maxGridSize[2] << ")\n";
+
+    std::cout << "clock rate: " << device_prop.clockRate / 1000.0f << " MHz\n";
+    std::cout << "memory clock rate: " << device_prop.memoryClockRate / 1000.0f << " MHz\n";
+    std::cout << "memory bus width: " << device_prop.memoryBusWidth << " bits\n";
+    std::cout << "compute capability: " << device_prop.major << "." << device_prop.minor << "\n";
+    std::cout << "\n";
+}
+
 void randomize_matrix(std::vector<float> &a) {
     static std::default_random_engine rng(1337);
     static std::uniform_real_distribution<float> dist;
@@ -33,6 +67,7 @@ void print_matrix(std::vector<float> &a, int m, int n, int limit) {
         }
         std::cout << "\n";
     }
+    std::cout << "\n";
 }
 
 bool is_matrix_same(std::vector<float> &a, std::vector<float> &b) {
