@@ -29,8 +29,8 @@ make clean  # Remove all files in the build folder
 ```
 
 ```sh
-./build/kernels.out
-ncu --set full --target-processes all ./build/kernels.out
+./build/kernels.out   # run
+ncu --set full --target-processes all ./build/kernels.out   # run with profiling
 ```
 
 ## Performance
@@ -51,9 +51,6 @@ Assume m = n = k = 4096.
 | ---- | ------ | ------ | --------- |
 | 1 | naive | 306.568 | 448.314 |
 | 2 | global memory coalescing | 2040.133 | 67.368 |
-| 3 | shared memory caching | 2893.336 | |
-| 4 | thread tiling 1d | 8256.946 | |
-| 5 | thread tiling 2d | | |
 
 ### Memory Profile
 
