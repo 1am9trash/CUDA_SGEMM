@@ -51,6 +51,7 @@ Assume m = n = k = 4096.
 | ---- | ------ | ------ | --------- |
 | 1 | naive | 306.568 | 448.314 |
 | 2 | global memory coalescing | 2040.133 | 67.368 |
+| 3 | shared memory caching | 2869.453 | 47.897 |
 
 ### Memory Profile
 
@@ -62,23 +63,23 @@ ncu \
 ./build/kernels.out
 ```
 
-| kernel | dram bytes (GB/s) | dram throughput (%) | l1_bytes (TB/s) | lts_bytes (GB/s) |
-| ------ | ----------------- | ------------------- | --------------- | ---------------- |
-| 1. naive | 14.22 | 1.56 | 3.62 | 33.70 |
-| 2. global memory coalescing | 112.59 | 12.38 | 4.35 | 219.17 |
-| 3. shared memory caching | 144.60 | 15.87 | 0.27 | 280.52 |
+| ID   | kernel | dram bytes (GB/s) | dram throughput (%) | l1_bytes (TB/s) | lts_bytes (GB/s) |
+| ---- | ------ | ----------------- | ------------------- | --------------- | ---------------- |
+| 1 | naive | 14.22 | 1.56 | 3.62 | 33.70 |
+| 2 | global memory coalescing | 112.59 | 12.38 | 4.35 | 219.17 |
+| 3 | shared memory caching | 145.49 | 15.97 | 0.28 | 283.21 |
 
 ## Optimization
 
 ### 1. naive
 - Each thread computes a single element in the C matrix, loading the entire row of the A matrix and the entire column of the B matrix.
 - The computation intensity is extremely low, as each pair of loaded variables results in only one Fused Multiply-Add (FMA) operation.
-- In the original configuration of a 32 × 32 block, only one block can be placed on a single SM due to the memory requirements. The minimum amount of data to be loaded is approximately 1 MB = (32 × 4096 × 2 + 32 × 32) * 4 bytes. This significantly exceeds the size of the L1 cache. As a result, more data must be loaded from external L2 cache or gmem in practice.
+- In the original configuration of a 32 × 32 block, only one block can be placed on a single SM due to the memory requirements. The minimum amount of data to be loaded is approximately 1 MB = (32 × 4096 × 2 + 32 × 32) × 4 bytes. This significantly exceeds the size of the L1 cache. As a result, more data must be loaded from external L2 cache or gmem in practice.
 
 ### 2. global memory coalescing
 - Threads within the same block are grouped into warps for execution. On modern GPUs, the warp size is typically 32, meaning that every 32 threads are executed together. Notably, thread IDs are assigned based on the x-dimension, meaning threads with consecutive threadIdx.x values are assigned to the same warp.
 - If memory accesses by different threads within the same warp are contiguous in gmem, they can be coalesced into a single memory access. Otherwise, multiple cycles are required to complete the accesses individually.
-- In Kernel 1, consecutive rows are executed within the same warp, while columns are not. As a result, threads in the same warp access the same column but 32 consecutive rows. However, these 32 rows are not contiguous in gmem (e.g., base, base + 4096, base + 4096 * 2, ...), preventing memory coalescing.
+- In Kernel 1, consecutive rows are executed within the same warp, while columns are not. As a result, threads in the same warp access the same column but 32 consecutive rows. However, these 32 rows are not contiguous in gmem (e.g., base, base + 4096, base + 4096 × 2, ...), preventing memory coalescing.
   ```cpp
   // kernel 1
   const int row = blockIdx.x * blockDim.x + threadIdx.x;
@@ -91,6 +92,15 @@ ncu \
   const int col = blockIdx.y * BLOCKSIZE + threadIdx.x % BLOCKSIZE;
   ```
 - As a result, the gmem throughput increased from 14.22 GB/s to 112.59 GB/s.
+
+### 3. shared memory caching
+- In kernel 1 and kernel 2, the total amount of data moved from gmem is capped at (2 × k × 4 bytes) × m × n, which is significantly higher than the theoretical minimum required for computation. This inefficiency arises because the smem is not fully utilized. By leveraging smem, the number of data accesses to gmem can be significantly reduced.
+- To address this, a tiling strategy is adopted. In each iteration:
+  - Each block loads a block_size × block_size tile of matrix A and matrix B into smem.
+  - The threads within the block use the shared data in smem to compute a portion of the corresponding C matrix.
+  - After completing the computation for the current tile, the block shifts by block_size along the k-dimension of matrices A and B, repeating the process for the next tile.
+- This process continues until all tiles are processed, completing the computation for matrix C in k / block_size iterations.
+- Since all threads within a block reuse the same data loaded into smem, the memory access volume can theoretically be reduced by a factor of 1 / BLOCK_SIZE compared to directly accessing gmem. However, in kernel 2, the L1 cache already achieves a reasonably high hit rate, which limits the additional benefits of shared memory optimization.
 
 ## Reference
 - [How to Optimize a CUDA Matmul Kernel for cuBLAS-like Performance: a Worklog](https://siboehm.com/articles/22/CUDA-MMM)
