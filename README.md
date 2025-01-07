@@ -54,6 +54,7 @@ Assume m = n = k = 4096.
 | 3 | shared memory caching | 2869.453 | 47.897 |
 | 4 | threading tiling 1d | 8164.237 | 16.834 |
 | 5 | threading tiling 2d | 15472.063 | 8.883 |
+| 6 | threading register | 15372.885 | 8.940 |
 
 ### Memory Profile
 
@@ -72,6 +73,7 @@ ncu \
 | 3 | shared memory caching | 145.49 | 15.97 | 0.28 | 283.21 | 0.39 | 49.07 |
 | 4 | thread tiling 1d | 178.55 | 19.64 | 0.43 | 439.58 | 0.81 | 60.17 |
 | 5 | thread tiling 2d | 104.50 | 11.50 | 0.50 | 441.71 | 18.44 | 77.80 |
+| 6 | thread register | 103.25 | 11.37 | 0.50 | 437.48 | 18.44 | 77.83 |
 
 ## Optimization
 
@@ -134,6 +136,10 @@ ncu \
 - Threads are extended to 2D, shifting from one thread handling a tile_m × 1 computation to one thread handling a tile_m × tile_n computation. This adjustment reduces the total number of threads, increases block size, and decreases gmem accesses.
   - In kernel 4, the configuration is (block_m, block_k, block_n, tile_m) = (64, 8, 64, 8), requiring 64 × 64 / 8 = 512 threads. Further scaling is not possible because a single SM can have a maximum of 1024 threads.
   - In this kernel, the configuration is (block_m, block_k, block_n, tile_m, tile_n) = (128, 8, 128, 8, 8), requiring only 128 × 128 / 8 / 8 = 256 threads.
+
+### 6. thread tiling register
+- An attempt was made to store the data used in 2D thread tiling computations in registers instead of accessing shared memory (smem) on each operation.
+- However, testing revealed a slight performance degradation. The benefit of reducing memory access by using registers was outweighed by the overhead introduced by managing data in registers.
 
 ## Reference
 - [How to Optimize a CUDA Matmul Kernel for cuBLAS-like Performance: a Worklog](https://siboehm.com/articles/22/CUDA-MMM)
