@@ -52,6 +52,7 @@ Assume m = n = k = 4096.
 | 1 | naive | 306.568 | 448.314 |
 | 2 | global memory coalescing | 2040.133 | 67.368 |
 | 3 | shared memory caching | 2869.453 | 47.897 |
+| 4 | threading tiling 1d | 8164.237 | 16.834 |
 
 ### Memory Profile
 
@@ -63,11 +64,12 @@ ncu \
 ./build/kernels.out
 ```
 
-| ID   | kernel | dram bytes (GB/s) | dram throughput (%) | l1_bytes (TB/s) | lts_bytes (GB/s) |
-| ---- | ------ | ----------------- | ------------------- | --------------- | ---------------- |
-| 1 | naive | 14.22 | 1.56 | 3.62 | 33.70 |
-| 2 | global memory coalescing | 112.59 | 12.38 | 4.35 | 219.17 |
-| 3 | shared memory caching | 145.49 | 15.97 | 0.28 | 283.21 |
+| ID   | kernel | dram bytes (GB/s) | dram throughput (%) | L1/tex bytes (TB/s) | lts bytes (GB/s) | L1/tex hit rate (%) | L2 hit rate (%) |
+| ---- | ------ | ----------------- | ------------------- | ------------------- | ---------------- | ------------------- | --------------- |
+| 1 | naive | 14.22 | 1.56 | 3.62 | 33.70 | 99.09 | 58.72 |
+| 2 | global memory coalescing | 112.59 | 12.38 | 4.35 | 219.17 | 94.98 | 49.08 |
+| 3 | shared memory caching | 145.49 | 15.97 | 0.28 | 283.21 | 0.39 | 49.07 |
+| 4 | thread tiling 1d | 178.55 | 19.64 | 0.43 | 439.58 | 0.81 | 60.17 |
 
 ## Optimization
 
@@ -100,7 +102,31 @@ ncu \
   - The threads within the block use the shared data in smem to compute a portion of the corresponding C matrix.
   - After completing the computation for the current tile, the block shifts by block_size along the k-dimension of matrices A and B, repeating the process for the next tile.
 - This process continues until all tiles are processed, completing the computation for matrix C in k / block_size iterations.
-- Since all threads within a block reuse the same data loaded into smem, the memory access volume can theoretically be reduced by a factor of 1 / BLOCK_SIZE compared to directly accessing gmem. However, in kernel 2, the L1 cache already achieves a reasonably high hit rate, which limits the additional benefits of shared memory optimization.
+- Since all threads within a block reuse the same data loaded into smem, the memory access volume can theoretically be reduced by a factor of 1 / block_size compared to directly accessing gmem. However, in kernel 2, the L1 cache already achieves a reasonably high hit rate, which limits the additional benefits of shared memory optimization.
+
+### 4. thread tiling 1d
+- In Kernel 3, smem is used to store the required data from matrices A and B for each iteration. The matrices are assumed to have dimensions defined by block_size.
+  ```cpp
+  __shared__ float tile_a[BLOCKSIZE * BLOCKSIZE];
+  __shared__ float tile_b[BLOCKSIZE * BLOCKSIZE];
+  ```
+- If block_size is subdivided into block_m, block_n, and block_k, the total amount of data accessed can be expressed as the following. From this equation, we observe that block_k cancels out, meaning the larger block_m and block_n are, the better the performance.
+  ```
+  (m × n / block_m / block_n) × (block_m × block_k + block_n × block_k) × 4 bytes × (k / block_k)
+  ```
+  - (m × n / block_m / block_n): block amount
+  - (block_m × block_k + block_n × block_k) × 4 bytes: access data amount per iteration
+  - k / block_k: interation amount
+- However, due to the limited size of smem, block_m and block_n cannot be increased indefinitely. To save smem usage, we reduce the size of block_k, ensuring that the smem requirement remains manageable while significantly reducing the total data access. Additionally, we make block_m and block_n equal in size to ensure uniform memory access.
+  ```cpp
+  __shared__ float tile_a[BM * BK];
+  __shared__ float tile_b[BK * BN];
+  ```
+- In this design, each block computes a block_m × block_n portion of the C matrix. For each iteration, it loads only a block_m × block_k portion of A matrix and a block_k × block_n portion of B matrix. Since block_m × block_n > block_m × block_k, a single thread processes block_m × block_n / (block_m × block_k) elements of C matrix.
+- To avoid redundant accesses to the C matrix, we use thread-local registers to store intermediate results for each thread.
+  ```cpp
+  float thread_result[TM] = {0.0};
+  ```
 
 ## Reference
 - [How to Optimize a CUDA Matmul Kernel for cuBLAS-like Performance: a Worklog](https://siboehm.com/articles/22/CUDA-MMM)
