@@ -61,14 +61,13 @@ int main() {
     std::cout << "elapsed time: " << elapsed_time / test_count * 1000 << " ms\n";
     std::cout << "performance: " << ((double)test_count * 2 * m * n * k * 1e-9) / elapsed_time << " GFLOPS\n\n";
 
-
     // ------
 
     if (check_answer) {
         cudaCheck(cudaMemcpy(device_c, host_c.data(), byte_count, cudaMemcpyHostToDevice));
         run_sgemm(kernel_id, m, n, k, alpha, device_a, device_b, beta, device_c);
         std::vector<float> kernel_result = std::vector<float>(m * n);
-        cudaCheck(cudaMemcpy(kernel_result.data(), device_c, sizeof(float) * m * n, cudaMemcpyDeviceToHost));
+        cudaCheck(cudaMemcpy(kernel_result.data(), device_c, byte_count, cudaMemcpyDeviceToHost));
 
         std::cout << "part of matrix:\n";
         print_matrix(kernel_result, m, n, 8);
@@ -85,6 +84,10 @@ int main() {
         }
         std::cout << "matrix correctness: " << is_matrix_same(ground_truth, kernel_result) << "\n\n"; 
     }
+
+    cudaCheck(cudaFree(device_a));
+    cudaCheck(cudaFree(device_b));
+    cudaCheck(cudaFree(device_c));
 
     return 0;
 }
