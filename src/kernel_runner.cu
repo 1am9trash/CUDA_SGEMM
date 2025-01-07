@@ -60,6 +60,17 @@ void run_5_sgemm_thread_tiling_2d(
     sgemm_thread_tiling_2d<BM, BK, BN, TM, TN><<<grid_dim, block_dim>>>(m, n, k, alpha, a, b, beta, c);
 }
 
+void run_6_sgemm_thread_register(
+    int m, int n, int k,
+    const float alpha, const float *a, const float *b, const float beta,
+    float *c
+) {
+    const int BM = 128, BK = 8, BN = 128, TM = 8, TN = 8;
+    dim3 grid_dim(CEIL_DIV(n, BN), CEIL_DIV(m, BM));
+    dim3 block_dim(BM * BN / TM / TN);
+    sgemm_thread_register<BM, BK, BN, TM, TN><<<grid_dim, block_dim>>>(m, n, k, alpha, a, b, beta, c);
+}
+
 void run_sgemm(
     int kernel_id,
     int m, int n, int k,
@@ -76,4 +87,6 @@ void run_sgemm(
         run_4_sgemm_thread_tiling_1d(m, n, k, alpha, a, b, beta, c);
     else if (kernel_id == 5)
         run_5_sgemm_thread_tiling_2d(m, n, k, alpha, a, b, beta, c);
+    else if (kernel_id == 6)
+        run_6_sgemm_thread_register(m, n, k, alpha, a, b, beta, c);
 }

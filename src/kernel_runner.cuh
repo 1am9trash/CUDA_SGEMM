@@ -34,6 +34,12 @@ void run_5_sgemm_thread_tiling_2d(
     float *c
 );
 
+void run_6_sgemm_thread_register(
+    int m, int n, int k,
+    const float alpha, const float *a, const float *b, const float beta,
+    float *c
+);
+
 void run_sgemm(
     int kernel_id,
     int m, int n, int k,
