@@ -55,6 +55,8 @@ Assume m = n = k = 4096.
 | 4 | threading tiling 1d | 8164.237 | 16.834 |
 | 5 | threading tiling 2d | 15472.063 | 8.883 |
 | 6 | threading register | 15372.885 | 8.940 |
+| 7 | vectorized access | 17567.859 | 7.823 |
+| - | cublas (baseline) | 20283.351 | 6.776 |
 
 ### Memory Profile
 
@@ -74,6 +76,8 @@ ncu \
 | 4 | thread tiling 1d | 178.55 | 19.64 | 0.43 | 439.58 | 0.81 | 60.17 |
 | 5 | thread tiling 2d | 104.50 | 11.50 | 0.50 | 441.71 | 18.44 | 77.80 |
 | 6 | thread register | 103.25 | 11.37 | 0.50 | 437.48 | 18.44 | 77.83 |
+| 7 | vectorized access | 119.46 | 13.18 | 0.49 | 502.78 | 5.23 | 77.69 |
+| - | cublas (baseline) | 83.95 | 9.24 | 0.47 | 489.45 | 1.96 | 87.07 |
 
 ## Optimization
 
@@ -140,6 +144,16 @@ ncu \
 ### 6. thread tiling register
 - An attempt was made to store the data used in 2D thread tiling computations in registers instead of accessing shared memory (smem) on each operation.
 - However, testing revealed a slight performance degradation. The benefit of reducing memory access by using registers was outweighed by the overhead introduced by managing data in registers.
+
+### 7. vectorized access
+- On GPUs, LDS.128 can be utilized to optimize memory access efficiency. Originally, 4 separate float32 access instructions can be combined into a single operation, referred to as vectorized memory access.
+- In kernel 6, matrices A and B are loaded into smem to accelerate subsequent computations. The loading of matrix B benefits from coalesced memory access across threads (same to kernel 2), allowing it to be combined efficiently. However, matrix A does not exhibit this continuity between threads.
+- In this kernel, the data portions of matrix A handled by each thread are restructured to ensure contiguous memory access. This enables the use of LDS.128 to accelerate the loading process.
+
+### TODO List
+- double buffer for prefetch
+- bank conflict in smem
+- warp tiling
 
 ## Reference
 - [How to Optimize a CUDA Matmul Kernel for cuBLAS-like Performance: a Worklog](https://siboehm.com/articles/22/CUDA-MMM)
