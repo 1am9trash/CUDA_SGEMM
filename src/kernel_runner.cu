@@ -1,5 +1,6 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <cublas_v2.h>
 #include "kernel_runner.cuh"
 #include "kernels/sgemm.cuh"
 
@@ -71,13 +72,37 @@ void run_6_sgemm_thread_register(
     sgemm_thread_register<BM, BK, BN, TM, TN><<<grid_dim, block_dim>>>(m, n, k, alpha, a, b, beta, c);
 }
 
+void run_7_sgemm_vectorized_access(
+    int m, int n, int k,
+    const float alpha, const float *a, const float *b, const float beta,
+    float *c
+) {
+    const int BM = 128, BK = 8, BN = 128, TM = 8, TN = 8;
+    dim3 grid_dim(CEIL_DIV(n, BN), CEIL_DIV(m, BM));
+    dim3 block_dim(BM * BN / TM / TN);
+    sgemm_vectorized_access<BM, BK, BN, TM, TN><<<grid_dim, block_dim>>>(m, n, k, alpha, a, b, beta, c);
+}
+
+void run_cublas_sgemm(
+    int m, int n, int k,
+    const float alpha, const float *a, const float *b, const float beta,
+    float *c
+) {
+    cublasHandle_t handle;
+    cublasCreate(&handle);
+    cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k, &alpha, b, n, a, k, &beta, c, n);
+    cublasDestroy(handle);
+}
+
 void run_sgemm(
     int kernel_id,
     int m, int n, int k,
     const float alpha, const float *a, const float *b, const float beta,
     float *c
 ) {
-    if (kernel_id == 1)
+    if (kernel_id == 0)
+        run_cublas_sgemm(m, n, k, alpha, a, b, beta, c);
+    else if (kernel_id == 1)
         run_1_sgemm_naive(m, n, k, alpha, a, b, beta, c);
     else if (kernel_id == 2)
         run_2_sgemm_global_mem_coalescing(m, n, k, alpha, a, b, beta, c);
@@ -89,4 +114,6 @@ void run_sgemm(
         run_5_sgemm_thread_tiling_2d(m, n, k, alpha, a, b, beta, c);
     else if (kernel_id == 6)
         run_6_sgemm_thread_register(m, n, k, alpha, a, b, beta, c);
+    else if (kernel_id == 7)
+        run_7_sgemm_vectorized_access(m, n, k, alpha, a, b, beta, c);
 }

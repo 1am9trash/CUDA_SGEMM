@@ -54,4 +54,11 @@ __global__ void sgemm_thread_register(
     float *c
 );
 
+template <const int BM, const int BK, const int BN, const int TM, const int TN>
+__global__ void sgemm_vectorized_access(
+    int m, int n, int k,
+    const float alpha, const float *a, const float *b, const float beta,
+    float *c
+);
+
 #endif
