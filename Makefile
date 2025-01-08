@@ -1,5 +1,5 @@
 CUDA_C = nvcc
-CUDA_FLAGS = -O0
+CUDA_FLAGS = -O0 -lcublas
 
 SRC_FOLDER = src
 KERNELS_FOLDER = $(SRC_FOLDER)/kernels
